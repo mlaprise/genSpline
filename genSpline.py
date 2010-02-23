@@ -20,17 +20,14 @@ from numpy import *
 import scipy
 import pylab as pl
 import scipy.interpolate
-from scipy import integrate
 from scipy import signal
-import PyOFTK
-from PyOFTK.utilities import *
 import time
 import copy
 
 
 class Individual:
 
-	def __init__(self, geneLength, individualLength, func, baseVal = 0.0, varVal = 10.0):
+	def __init__(self, geneLength, individualLength, func, baseVal = 0.0, varVal = 1.0):
 		
 		# Constructor
 		self.length = 0
@@ -41,6 +38,8 @@ class Individual:
 		self.xBound = [-1,1]
 		self.gLength = geneLength
 		self.iLength = individualLength
+		self.baseVal = baseVal
+		self.varVal = varVal
 
 		self.x = pl.linspace(-16,16, geneLength)
 		self.y = numpy.zeros(geneLength, complex)
@@ -117,7 +116,7 @@ class Individual:
 		Whole Arithmetic Recombination
 		'''
 		alpha = 0.5
-		Child = Individual(self.gLength, self.iLength, self.fitnessFunc)
+		Child = Individual(self.gLength, self.iLength, self.fitnessFunc, self.baseVal, self.varVal)
 
 		try:
 			for i in range(self.gLength):
@@ -146,24 +145,24 @@ class Individual:
 
 class Population:
 
-	def __init__(self, nbrIndividual, genLength, indLength, func, seed = 0):
+	def __init__(self, nbrIndividual, genLength, indLength, func, baseVal = 0.0, varVal = 1.0, seed = 0):
 
 		self.length = nbrIndividual
 		self.rankingComputed = 0
 
 		if type(seed) == list:
-			self.Ind = [Individual(genLength, indLength, func, 0)]
+			self.Ind = [Individual(genLength, indLength, func, baseVal, varVal)]
 			for i in range(len(seed)):
-				self.Ind.append(Individual(genLength, indLength, func, 0))
+				self.Ind.append(Individual(genLength, indLength, func, baseVal, varVal))
 				self.Ind[i] = seed[i]
 			for i in range(nbrIndividual-len(seed)):
-				self.Ind.append(Individual(genLength, indLength, func, 0))
+				self.Ind.append(Individual(genLength, indLength, func, baseVal, varVal))
 
 		else:
-			self.Ind = [Individual(genLength, indLength, func)]
+			self.Ind = [Individual(genLength, indLength, func, baseVal, varVal)]
 
 			for i in range(nbrIndividual-1):
-				self.Ind.append(Individual(genLength, indLength, func))
+				self.Ind.append(Individual(genLength, indLength, func, baseVal, varVal))
 
 	def __str__(self):
 		msg  = "**********"
@@ -282,7 +281,7 @@ class Population:
 		newLength = self.length + Other.length
 		
 		if (self.Ind[0].iLength == Other.Ind[0].iLength) & (self.Ind[0].gLength == Other.Ind[0].gLength):
-			newPop = Population(newLength, self.Ind[0].gLength, self.Ind[0].iLength)
+			newPop = Population(newLength, self.Ind[0].gLength, self.Ind[0].iLength, self.Ind[0].fitnessFunc, self.Ind[0].baseVal, self.Ind[0].varVal)
 
 			for i in range(self.length):
 				newPop.Ind[i] = self.Ind[i]
@@ -313,6 +312,8 @@ class splineGA:
 			self.gLength = pop.Ind[0].gLength
 			self.iLength = pop.Ind[0].iLength
 			self.fitnessFunc = pop.Ind[0].fitnessFunc
+			self.baseVal = pop.Ind[0].baseVal
+			self.varVal = pop.Ind[0].varVal
 		else:
 			raise TypeError, 'The input should be a Population instance'
 	
@@ -322,8 +323,8 @@ class splineGA:
 		statMeanFitnessTop10 = zeros(nbrGeneration)
 
 		Generation = range(nbrGeneration+1)
-		presentGeneration = Population(self.popSize, self.gLength, self.iLength, self.fitnessFunc)
-		futurGeneration = Population(self.popSize, self.gLength, self.iLength, self.fitnessFunc)
+		presentGeneration = Population(self.popSize, self.gLength, self.iLength, self.fitnessFunc, self.baseVal, self.varVal)
+		futurGeneration = Population(self.popSize, self.gLength, self.iLength, self.fitnessFunc, self.baseVal, self.varVal)
 		OffSpring = range(selecSize/2)
 
 		archiveBestInd = zeros([nbrGeneration,  self.iLength])
