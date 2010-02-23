@@ -26,6 +26,9 @@ import copy
 
 
 class Individual:
+	'''
+	Individual Class
+	'''
 
 	def __init__(self, geneLength, individualLength, func, baseVal = 0.0, varVal = 1.0):
 		
@@ -41,7 +44,7 @@ class Individual:
 		self.baseVal = baseVal
 		self.varVal = varVal
 
-		self.x = pl.linspace(-16,16, geneLength)
+		self.x = pl.linspace(-1,1, geneLength)
 		self.y = numpy.zeros(geneLength, complex)
 		self.y = baseVal + numpy.random.random(geneLength)*varVal
 
@@ -134,7 +137,7 @@ class Individual:
 		self.age += Other
 		return self
 
-	def fitnessEval(self):
+	def fitnessEval3(self):
 		if not self.fitnessComputed:
 			try:			
 				self.fitness = self.fitnessFunc(self.x_int, self.y_int)
@@ -142,8 +145,17 @@ class Individual:
 			except:
 				self.fitness = inf
 
+	def fitnessEval(self):
+		if not self.fitnessComputed:
+			self.fitness = self.fitnessFunc(self.x_int, self.y_int)
+			self.fitnessComputed = 1
+
+
 
 class Population:
+	'''
+	Population Class
+	'''	
 
 	def __init__(self, nbrIndividual, genLength, indLength, func, baseVal = 0.0, varVal = 1.0, seed = 0):
 
@@ -317,7 +329,7 @@ class splineGA:
 		else:
 			raise TypeError, 'The input should be a Population instance'
 	
-	def run(self, nbrGeneration, olderSize, selecSize, mutationsNbr = 1, mutationStrength = 0.1):
+	def run(self, nbrGeneration, olderSize, selecSize, mutationsNbr = 1, mutationStrength = 0.1, selecMethod='SUSSelection'):
 		p = zeros(nbrGeneration)
 		statMeanFitness = zeros(nbrGeneration)
 		statMeanFitnessTop10 = zeros(nbrGeneration)
@@ -335,7 +347,10 @@ class splineGA:
 			Main GA optimization loop
 			'''
 
-			Selection = presentGeneration.SUSSelection(selecSize)
+			Selection = {
+			  'SUSSelection': lambda: presentGeneration.SUSSelection(selecSize),
+			  'RWSelection': lambda: presentGeneration.RWSelection(selecSize),
+			}[selecMethod]()
 
 			for i in range(selecSize/2):
 				OffSpring[i] = presentGeneration.Ind[int(Selection[selecSize/2-i])] + presentGeneration.Ind[int(Selection[selecSize/2+i])]
