@@ -45,7 +45,7 @@ class Individual:
 		self.varVal = varVal
 
 		self.x = pl.linspace(0.0,1.0, geneLength)
-		self.y = numpy.zeros(geneLength, complex)
+		self.y = numpy.zeros(geneLength, float)
 		self.y = baseVal + numpy.random.random(geneLength)*varVal
 
 		self.x_int = pl.linspace(self.x.min(), self.x.max(), individualLength)
@@ -137,7 +137,7 @@ class Individual:
 		self.age += Other
 		return self
 
-	def fitnessEval3(self):
+	def fitnessEval(self):
 		if not self.fitnessComputed:
 			try:			
 				self.fitness = self.fitnessFunc(self.x_int, self.y_int)
@@ -145,11 +145,148 @@ class Individual:
 			except:
 				self.fitness = inf
 
+
+class IndividualComp:
+	'''
+	Individual Class - Complex version
+	'''
+
+	def __init__(self, geneLength, individualLength, func, baseVal = 0.0, varVal = 1.0):
+		
+		# Constructor
+		self.length = 0
+		self.fitness = 0.0
+		self.fitnessFunc = func
+		self.fitnessComputed = 0
+		self.age = 0
+		self.xBound = [0.0,1.0]
+		self.gLength = geneLength
+		self.iLength = individualLength
+		self.baseVal = baseVal
+		self.varVal = varVal
+
+		self.x = pl.linspace(0.0,1.0, geneLength)
+		self.y = numpy.zeros(geneLength, complex)
+		self.y.real = baseVal + numpy.random.random(geneLength)*varVal
+		self.y.imag = baseVal + numpy.random.random(geneLength)*varVal
+
+		self.x_int = pl.linspace(self.x.min(), self.x.max(), individualLength)
+		self.y_int = pl.arange(individualLength, dtype=complex)
+		self.birth()
+
+	def plotGene(self):
+		'''
+		Plot the gene
+		'''
+		pl.plot(self.x, self.y, '.')
+		pl.grid(True)
+		pl.show()
+
+	def plotIndividual(self):
+		'''
+		Plot the individual
+		'''
+		pl.plot(self.x_int, self.y_int)
+		pl.grid(True)
+		pl.show()
+
+	def plot(self):
+		'''
+		Plot the individual and the gene
+		'''
+		pl.plot(self.x, self.y, '.')
+		pl.plot(self.x_int, self.y_int)
+		pl.grid(True)
+		pl.show()
+
+
+
+	def mutation(self,strength = 0.1):
+		'''
+		Single gene mutation - Complex version
+		'''
+		# Mutation du gene - real
+		mutStrengthReal = strength
+		mutMaxSizeReal = self.gLength/2
+		mutSizeReal = int(numpy.random.random_integers(1,mutMaxSizeReal))
+		mutationPosReal = int(numpy.random.random_integers(0+mutSizeReal-1,self.y.shape[0]-1-mutSizeReal))
+		mutationSignReal = pl.rand()
+		mutationReal = pl.rand()
+
+		# Mutation du gene - imag
+		mutStrengthImag = strength
+		mutMaxSizeImag = self.gLength/2
+		mutSizeImag = int(numpy.random.random_integers(1,mutMaxSizeImag))
+		mutationPosImag = int(numpy.random.random_integers(0+mutSizeImag-1,self.y.shape[0]-1-mutSizeImag))
+		mutationSignImag = pl.rand()
+		mutationImag = pl.rand()
+
+		if mutationSignReal > 0.5:
+			for i in range(-mutSizeReal/2, mutSizeReal/2):
+				self.y.real[mutationPosReal+i] = self.y.real[mutationPosReal+i] + mutStrengthReal*self.y.real[mutationPosReal+i]*mutationReal
+		else:
+			for i in range(-mutSizeReal/2, mutSizeReal/2):
+				self.y.real[mutationPosReal+i] = self.y.real[mutationPosReal+i] - mutStrengthReal*self.y.real[mutationPosReal+i]*mutationReal
+
+		if mutationSignImag > 0.5:
+			for i in range(-mutSizeImag/2, mutSizeImag/2):
+				self.y.imag[mutationPosImag+i] = self.y.imag[mutationPosImag+i] + mutStrengthImag*self.y.imag[mutationPosImag+i]*mutationImag
+		else:
+			for i in range(-mutSizeImag/2, mutSizeImag/2):
+				self.y.imag[mutationPosImag+i] = self.y.imag[mutationPosImag+i] - mutStrengthImag*self.y.imag[mutationPosImag+i]*mutationImag
+
+		# Compute the individual
+		self.birth()
+
+
+	def mutations(self, nbr, strength):
+		'''
+		Multiple gene mutations
+		'''
+		for i in range(nbr):
+			self.mutation(strength)
+	
+			
+	def birth(self):
+		'''
+		Create the individual (compute the spline curve)
+		'''
+		splineReal = scipy.interpolate.splrep(self.x, self.y.real)
+		self.y_int.real = scipy.interpolate.splev(self.x_int,splineReal)
+		splineImag = scipy.interpolate.splrep(self.x, self.y.imag)
+		self.y_int.imag = scipy.interpolate.splev(self.x_int,splineImag)
+
+	def __add__(self,Other):
+		'''
+		Overloading of the ADD operator for the Recombination operator
+		Whole Arithmetic Recombination
+		'''
+		alpha = 0.5
+		Child = Individual(self.gLength, self.iLength, self.fitnessFunc, self.baseVal, self.varVal)
+
+		try:
+			for i in range(self.gLength):
+				Child.y[i] = alpha*self.y[i] + (1-alpha)*Other.y[i]
+		except IndexError:
+			print " !! Individual must the same length for proper Recombination !! "
+		
+		Child.birth()
+		return Child
+
+ 	def __iadd__(self,Other):
+		'''
+		Overloading of the iADD operator for the incrementation of age
+		'''
+		self.age += Other
+		return self
+
 	def fitnessEval(self):
 		if not self.fitnessComputed:
-			self.fitness = self.fitnessFunc(self.x_int, self.y_int)
-			self.fitnessComputed = 1
-
+			try:			
+				self.fitness = self.fitnessFunc(self.x_int, self.y_int)
+				self.fitnessComputed = 1
+			except:
+				self.fitness = inf
 
 
 class Population:
@@ -422,7 +559,6 @@ class splineRelaxGA:
 
 		# First run
 		initGeneration = Population(self.popSize, self.gLength, self.iLength, self.fitnessFunc, self.baseVal, self.varVal)
-		sim.append(splineGA(self.initPop))
 		[G, A, F[0], S] = sim[0].run(nbrGeneration, olderSize, selecSize, mutationsNbr, maxStrength, selecMethod='SUSSelection')
 		statMeanFitness = zeros(0,float)
 		statMeanFitness = r_[statMeanFitness, F[0]]
