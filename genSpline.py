@@ -38,13 +38,13 @@ class Individual:
 		self.fitnessFunc = func
 		self.fitnessComputed = 0
 		self.age = 0
-		self.xBound = [-1,1]
+		self.xBound = [0.0,1.0]
 		self.gLength = geneLength
 		self.iLength = individualLength
 		self.baseVal = baseVal
 		self.varVal = varVal
 
-		self.x = pl.linspace(-1,1, geneLength)
+		self.x = pl.linspace(0.0,1.0, geneLength)
 		self.y = numpy.zeros(geneLength, complex)
 		self.y = baseVal + numpy.random.random(geneLength)*varVal
 
@@ -317,9 +317,12 @@ class Population:
 
 
 class splineGA:
-
+	'''
+	Spline-based genetic optimization class
+	'''	
 	def __init__(self, pop):
 		if isinstance(pop, Population):
+			self.initPop = pop
 			self.popSize = pop.length
 			self.gLength = pop.Ind[0].gLength
 			self.iLength = pop.Ind[0].iLength
@@ -335,7 +338,8 @@ class splineGA:
 		statMeanFitnessTop10 = zeros(nbrGeneration)
 
 		Generation = range(nbrGeneration+1)
-		presentGeneration = Population(self.popSize, self.gLength, self.iLength, self.fitnessFunc, self.baseVal, self.varVal)
+		#presentGeneration = Population(self.popSize, self.gLength, self.iLength, self.fitnessFunc, self.baseVal, self.varVal)
+		presentGeneration = self.initPop
 		futurGeneration = Population(self.popSize, self.gLength, self.iLength, self.fitnessFunc, self.baseVal, self.varVal)
 		OffSpring = range(selecSize/2)
 
@@ -354,6 +358,7 @@ class splineGA:
 
 			for i in range(selecSize/2):
 				OffSpring[i] = presentGeneration.Ind[int(Selection[selecSize/2-i])] + presentGeneration.Ind[int(Selection[selecSize/2+i])]
+				#mutationStrength = numpy.random.random(1)[0]/2
 				OffSpring[i].mutations(mutationsNbr, mutationStrength)
 				OffSpring[i].fitnessEval()
 	
@@ -391,7 +396,43 @@ class splineGA:
 		return [presentGeneration, archiveBestInd, statMeanFitness, S]
 
 
+class splineRelaxGA:
+	'''
+	Perform multiple sucessives genetic optimization with relaxed parameters
+	'''	
 
+	def __init__(self, pop):
+		if isinstance(pop, Population):
+			self.initPop = pop
+			self.popSize = pop.length
+			self.gLength = pop.Ind[0].gLength
+			self.iLength = pop.Ind[0].iLength
+			self.fitnessFunc = pop.Ind[0].fitnessFunc
+			self.baseVal = pop.Ind[0].baseVal
+			self.varVal = pop.Ind[0].varVal
+		else:
+			raise TypeError, 'The input should be a Population instance'
 
+	def run(self, nbrGeneration, olderSize, selecSize, mutationsNbr = 1,
+		 		maxStrength = 0.1, nbrStep = 1, selecMethod='SUSSelection'):
+		
+		# Initiate empty list for storing splineGA instances
+		sim = []
+		F = zeros([nbrStep+1,nbrGeneration], float)
+
+		# First run
+		initGeneration = Population(self.popSize, self.gLength, self.iLength, self.fitnessFunc, self.baseVal, self.varVal)
+		sim.append(splineGA(self.initPop))
+		[G, A, F[0], S] = sim[0].run(nbrGeneration, olderSize, selecSize, mutationsNbr, maxStrength, selecMethod='SUSSelection')
+		statMeanFitness = zeros(0,float)
+		statMeanFitness = r_[statMeanFitness, F[0]]
+
+		# Loop over second to nth run
+		for i in arange(nbrStep):
+			sim.append(splineGA(G))
+			[G, A, F[i+1], S] = sim[i+1].run(nbrGeneration, olderSize, selecSize, mutationsNbr, maxStrength, selecMethod='SUSSelection')
+			statMeanFitness = r_[statMeanFitness, F[i+1]]
+
+		return [G, A, statMeanFitness, S] 
 
 
