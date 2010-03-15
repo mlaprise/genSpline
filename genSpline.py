@@ -1,18 +1,34 @@
 #!/usr/bin/env python
 
 
-'''
-	
+"""
+
 	Spline-based genetic optimization class
 
 
 
 	Author: 	Martin Laprise
-		    	Universite Laval
+			    Universite Laval
 				martin.laprise.1@ulaval.ca
                  
-'''
 
+Copyright (C) 2007-2010 Martin Laprise (mlaprise@gmail.com)
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; version 2 dated June, 1991.
+
+This software is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANDABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software Foundation,
+Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
+
+
+"""
 
 import numpy
 import numpy.random
@@ -21,11 +37,33 @@ import scipy
 import pylab as pl
 import scipy.interpolate
 from scipy import signal
+from scipy import stats
 import time
 import copy
 
 
-class Individual:
+def gaussianPulse(t, FWHM, t0, P0 = 1.0, m = 1, C = 0):
+	"""
+	Geneate a gaussian/supergaussiance envelope pulse
+
+		* field_amp: 	output gaussian pulse envellope (amplitude).
+		* t:     		vector of times at which to compute u
+		* t0:    		center of pulse (default = 0)
+		* FWHM:   		full-width at half-intensity of pulse (default = 1)
+		* P0:    		peak intensity of the pulse @ t=t0 (default = 1)
+		* m:     		Gaussian order (default = 1)
+		* C:     		chirp parameter (default = 0)
+	"""
+
+	t_zero = FWHM/sqrt(4.0*log(2.0))
+	amp = sqrt(P0)
+	real_exp_arg = -pow(((t-t0)/t_zero),2.0*m)/2.0
+	euler1 = cos(-C*real_exp_arg)
+	euler2 = sin(-C*real_exp_arg)
+	return amp*exp(real_exp_arg)*euler1 + amp*exp(real_exp_arg)*euler2*1.0j
+
+
+class IndividualReal:
 	'''
 	Individual Class
 	'''
@@ -146,12 +184,12 @@ class Individual:
 				self.fitness = inf
 
 
-class IndividualComp:
+class Individual:
 	'''
 	Individual Class - Complex version
 	'''
 
-	def __init__(self, geneLength, individualLength, func, baseVal = 0.0, varVal = 1.0):
+	def __init__(self, geneLength, individualLength, func, baseVal = 0.0, varVal = 1.0, apodisation = True):
 		
 		# Constructor
 		self.length = 0
@@ -169,6 +207,8 @@ class IndividualComp:
 		self.y = numpy.zeros(geneLength, complex)
 		self.y.real = baseVal + numpy.random.random(geneLength)*varVal
 		self.y.imag = baseVal + numpy.random.random(geneLength)*varVal
+		if apodisation:
+			self.y = self.y*gaussianPulse(self.x, self.x.max()/2, self.x.max()/2, 1.0, 8)
 
 		self.x_int = pl.linspace(self.x.min(), self.x.max(), individualLength)
 		self.y_int = pl.arange(individualLength, dtype=complex)
@@ -298,6 +338,7 @@ class Population:
 
 		self.length = nbrIndividual
 		self.rankingComputed = 0
+		self.fitness = numpy.zeros(nbrIndividual, float)
 
 		if type(seed) == list:
 			self.Ind = [Individual(genLength, indLength, func, baseVal, varVal)]
@@ -352,6 +393,7 @@ class Population:
 		for i in range(self.length):
 			probability[fitnessSorted[i]] = ((2-S)/self.length) + (2*i*(S-1))/(self.length*(self.length-1))
 		self.rankingComputed = 1
+		self.fitness = 	fitnessAll
 
 		return [fitnessAll, fitnessSorted[::-1], probability]
 
@@ -469,7 +511,7 @@ class splineGA:
 		else:
 			raise TypeError, 'The input should be a Population instance'
 	
-	def run(self, nbrGeneration, olderSize, selecSize, mutationsNbr = 1, mutationStrength = 0.1, selecMethod='SUSSelection'):
+	def run(self, nbrGeneration, olderSize, selecSize, mutationsNbr = 1, mutationStrength = 0.1, selecMethod='SUSSelection', verbose=False):
 		p = zeros(nbrGeneration)
 		statMeanFitness = zeros(nbrGeneration)
 		statMeanFitnessTop10 = zeros(nbrGeneration)
@@ -530,6 +572,13 @@ class splineGA:
 			futurGeneration += 1
 			presentGeneration = copy.deepcopy(futurGeneration)
 		
+			# Print some info
+			if verbose:
+				print('Generation ' + str(g))
+				print('Fitness Mean: ' + str(statMeanFitness[g]))
+				print('Fitness Variance: '+str(F.var()))
+				print('* * *')
+		
 		return [presentGeneration, archiveBestInd, statMeanFitness, S]
 
 
@@ -551,22 +600,23 @@ class splineRelaxGA:
 			raise TypeError, 'The input should be a Population instance'
 
 	def run(self, nbrGeneration, olderSize, selecSize, mutationsNbr = 1,
-		 		maxStrength = 0.1, nbrStep = 1, selecMethod='SUSSelection'):
+		 		maxStrength = 0.1, nbrStep = 1, selecMethod='SUSSelection', verbose=False):
 		
 		# Initiate empty list for storing splineGA instances
 		sim = []
+		sim.append(splineGA(self.initPop))
 		F = zeros([nbrStep+1,nbrGeneration], float)
 
 		# First run
 		initGeneration = Population(self.popSize, self.gLength, self.iLength, self.fitnessFunc, self.baseVal, self.varVal)
-		[G, A, F[0], S] = sim[0].run(nbrGeneration, olderSize, selecSize, mutationsNbr, maxStrength, selecMethod='SUSSelection')
+		[G, A, F[0], S] = sim[0].run(nbrGeneration, olderSize, selecSize, mutationsNbr, maxStrength, selecMethod='SUSSelection', verbose=verbose)
 		statMeanFitness = zeros(0,float)
 		statMeanFitness = r_[statMeanFitness, F[0]]
 
 		# Loop over second to nth run
 		for i in arange(nbrStep):
 			sim.append(splineGA(G))
-			[G, A, F[i+1], S] = sim[i+1].run(nbrGeneration, olderSize, selecSize, mutationsNbr, maxStrength, selecMethod='SUSSelection')
+			[G, A, F[i+1], S] = sim[i+1].run(nbrGeneration, olderSize, selecSize, mutationsNbr, maxStrength/(i+1), selecMethod='SUSSelection')
 			statMeanFitness = r_[statMeanFitness, F[i+1]]
 
 		return [G, A, statMeanFitness, S] 
