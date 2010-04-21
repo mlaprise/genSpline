@@ -12,20 +12,27 @@
 				martin.laprise.1@ulaval.ca
                  
 
-Copyright (C) 2007-2010 Martin Laprise (mlaprise@gmail.com)
+	The MIT License
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; version 2 dated June, 1991.
+	Copyright (c) 2009 Martin Laprise
 
-This software is distributed in the hope that it will be useful, but
-WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANDABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-General Public License for more details.
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software Foundation,
-Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
+	The above copyright notice and this permission notice shall be included in
+	all copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+	THE SOFTWARE.
 
 
 """
@@ -65,7 +72,7 @@ def gaussianPulse(t, FWHM, t0, P0 = 1.0, m = 1, C = 0):
 
 class IndividualReal:
 	'''
-	Individual Class
+	Real value spline - Individual Class
 	'''
 
 	def __init__(self, geneLength, individualLength, func, baseVal = 0.0, varVal = 1.0):
@@ -157,7 +164,7 @@ class IndividualReal:
 		Whole Arithmetic Recombination
 		'''
 		alpha = 0.5
-		Child = Individual(self.gLength, self.iLength, self.fitnessFunc, self.baseVal, self.varVal)
+		Child = IndividualReal(self.gLength, self.iLength, self.fitnessFunc, self.baseVal, self.varVal)
 
 		try:
 			for i in range(self.gLength):
@@ -175,18 +182,20 @@ class IndividualReal:
 		self.age += Other
 		return self
 
-	def fitnessEval(self):
+	def fitnessEval(self, returnInd = 0):
 		if not self.fitnessComputed:
 			try:			
 				self.fitness = self.fitnessFunc(self.x_int, self.y_int)
 				self.fitnessComputed = 1
 			except:
 				self.fitness = inf
+		if returnInd:
+			return self.fitnessFunc(self.x_int, self.y_int, 1)
 
 
-class Individual:
+class IndividualComp:
 	'''
-	Individual Class - Complex version
+	Complex value spline - Individual Class
 	'''
 
 	def __init__(self, geneLength, individualLength, func, baseVal = 0.0, varVal = 1.0, apodisation = True):
@@ -302,7 +311,7 @@ class Individual:
 		Whole Arithmetic Recombination
 		'''
 		alpha = 0.5
-		Child = Individual(self.gLength, self.iLength, self.fitnessFunc, self.baseVal, self.varVal)
+		Child = IndividualComp(self.gLength, self.iLength, self.fitnessFunc, self.baseVal, self.varVal)
 
 		try:
 			for i in range(self.gLength):
@@ -320,13 +329,15 @@ class Individual:
 		self.age += Other
 		return self
 
-	def fitnessEval(self):
+	def fitnessEval(self, returnInd = 0):
 		if not self.fitnessComputed:
 			try:			
 				self.fitness = self.fitnessFunc(self.x_int, self.y_int)
 				self.fitnessComputed = 1
 			except:
 				self.fitness = inf
+		if returnInd:
+			return self.fitnessFunc(self.x_int, self.y_int, 1)
 
 
 class Population:
@@ -334,11 +345,20 @@ class Population:
 	Population Class
 	'''	
 
-	def __init__(self, nbrIndividual, genLength, indLength, func, baseVal = 0.0, varVal = 1.0, seed = 0):
+	def __init__(self, nbrIndividual, genLength, indLength, func, baseVal = 0.0, varVal = 1.0, seed = 0, splineType='complex'):
 
 		self.length = nbrIndividual
 		self.rankingComputed = 0
 		self.fitness = numpy.zeros(nbrIndividual, float)
+		self.splineType = splineType
+
+		# Assign Individual to the adequate Class 
+		if splineType=='complex':
+			Individual = IndividualComp
+		elif splineType=='real':
+			Individual = IndividualReal
+		else:
+			raise TypeError, 'The spline should be real or complex'
 
 		if type(seed) == list:
 			self.Ind = [Individual(genLength, indLength, func, baseVal, varVal)]
@@ -373,7 +393,7 @@ class Population:
 
 	def rankingEval(self):
 		'''
-		Sorting the pop. base of the fitnessEval result
+		Sorting the pop. base on the fitnessEval result
 		'''
 		fitnessAll = numpy.zeros(self.length)
 		fitnessNorm = numpy.zeros(self.length)
@@ -514,12 +534,12 @@ class splineGA:
 	def run(self, nbrGeneration, olderSize, selecSize, mutationsNbr = 1, mutationStrength = 0.1, selecMethod='SUSSelection', verbose=False):
 		p = zeros(nbrGeneration)
 		statMeanFitness = zeros(nbrGeneration)
+		statMinFitness = zeros(nbrGeneration)
 		statMeanFitnessTop10 = zeros(nbrGeneration)
 
 		Generation = range(nbrGeneration+1)
-		#presentGeneration = Population(self.popSize, self.gLength, self.iLength, self.fitnessFunc, self.baseVal, self.varVal)
 		presentGeneration = self.initPop
-		futurGeneration = Population(self.popSize, self.gLength, self.iLength, self.fitnessFunc, self.baseVal, self.varVal)
+		futurGeneration = Population(self.popSize, self.gLength, self.iLength, self.fitnessFunc, self.baseVal, self.varVal, self.initPop.splineType)
 		OffSpring = range(selecSize/2)
 
 		archiveBestInd = zeros([nbrGeneration,  self.iLength])
@@ -537,7 +557,6 @@ class splineGA:
 
 			for i in range(selecSize/2):
 				OffSpring[i] = presentGeneration.Ind[int(Selection[selecSize/2-i])] + presentGeneration.Ind[int(Selection[selecSize/2+i])]
-				#mutationStrength = numpy.random.random(1)[0]/2
 				OffSpring[i].mutations(mutationsNbr, mutationStrength)
 				OffSpring[i].fitnessEval()
 	
@@ -561,6 +580,7 @@ class splineGA:
 				futurGeneration.Ind[j].age = 0
 
 			statMeanFitness[g] = F.mean()
+			statMinFitness[g] = F.min()
 	
 			# Compute the mean fitness of the top10 
 			for topi in arange(10) :
@@ -568,14 +588,14 @@ class splineGA:
 			statMeanFitnessTop10[g] = statMeanFitnessTop10[g] / 10.0
 
 			archiveBestInd[g] = presentGeneration.Ind[S[0]].y_int
-			# Add 1 to the age of this generation
+			# Increment of this generation
 			futurGeneration += 1
 			presentGeneration = copy.deepcopy(futurGeneration)
 		
 			# Print some info
 			if verbose:
 				print('Generation ' + str(g))
-				print('Fitness Mean: ' + str(statMeanFitness[g]))
+				print('Mean Fitness: ' + str(statMeanFitness[g]))
 				print('Fitness Variance: '+str(F.var()))
 				print('* * *')
 		
@@ -606,19 +626,23 @@ class splineRelaxGA:
 		sim = []
 		sim.append(splineGA(self.initPop))
 		F = zeros([nbrStep+1,nbrGeneration], float)
+		A = zeros([nbrGeneration, self.iLength], float)
+		archiveBestInd = zeros([nbrGeneration*(nbrStep), self.iLength], float)
 
 		# First run
-		initGeneration = Population(self.popSize, self.gLength, self.iLength, self.fitnessFunc, self.baseVal, self.varVal)
+		initGeneration = Population(self.popSize, self.gLength, self.iLength, self.fitnessFunc, self.baseVal, self.varVal, self.initPop.splineType)
 		[G, A, F[0], S] = sim[0].run(nbrGeneration, olderSize, selecSize, mutationsNbr, maxStrength, selecMethod='SUSSelection', verbose=verbose)
 		statMeanFitness = zeros(0,float)
 		statMeanFitness = r_[statMeanFitness, F[0]]
+		archiveBestInd[0:nbrGeneration] = A
 
 		# Loop over second to nth run
 		for i in arange(nbrStep):
 			sim.append(splineGA(G))
-			[G, A, F[i+1], S] = sim[i+1].run(nbrGeneration, olderSize, selecSize, mutationsNbr, maxStrength/(i+1), selecMethod='SUSSelection')
+			[G, A, F[i+1], S] = sim[i+1].run(nbrGeneration, olderSize, selecSize, mutationsNbr, maxStrength/sqrt(i+1), selecMethod='SUSSelection')
 			statMeanFitness = r_[statMeanFitness, F[i+1]]
+			archiveBestInd[(i*nbrGeneration):(i*nbrGeneration)+nbrGeneration] = A
 
-		return [G, A, statMeanFitness, S] 
+		return [G, archiveBestInd, statMeanFitness, S] 
 
 
