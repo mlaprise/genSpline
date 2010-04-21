@@ -6,13 +6,14 @@ METADATA = dict(
 	author='Martin Laprise',
 	author_email='martin.laprise.1@ulaval.ca',
 	description='Spline-based genetic optimization class ',
-	long_description=open('README').read(),
+	long_description=open('README.markdown').read(),
 	url='http://github.com/mlaprise/genSpline',
 	license = 'MIT License',
 	keywords='python genetic spline optimization',
 )
 SETUPTOOLS_METADATA = dict(
-	install_requires=['numpy', 'scipy', 'matplotlib >= 0.99.0'],
+	install_requires=['numpy', 'scipy'],
+	extras_require = dict(plot = ['matplotlib >= 0.99.0']),
 	include_package_data=True,
 	classifiers=[
 		'Development Status :: 4 - Beta',
