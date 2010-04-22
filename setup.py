@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 
 METADATA = dict(
-	name='genSpline',
+	name='python-genspline',
 	version='0.1',
 	author='Martin Laprise',
 	author_email='martin.laprise.1@ulaval.ca',
 	description='Spline-based genetic optimization class ',
-	long_description=open('README.markdown').read(),
+	long_description=open('README.rst').read(),
 	url='http://github.com/mlaprise/genSpline',
 	license = 'MIT License',
 	keywords='python genetic spline optimization',
@@ -26,7 +26,7 @@ SETUPTOOLS_METADATA = dict(
 		'Operating System :: OS Independent',
 		'Programming Language :: Python',
 	],
-	packages=['python-genspline'],
+	packages=['genSpline'],
 )
 
 if __name__ == '__main__':
