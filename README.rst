@@ -12,9 +12,10 @@ Requirements
 
 Installation
 ---------------------------------------------------
-git clone git://github.com/mlaprise/genSpline.git
-cd genSpline
-sudo python setup.py install
+from the source ::
+	git clone git://github.com/mlaprise/genSpline.git
+	cd genSpline
+	sudo python setup.py install
 
 
 Example
