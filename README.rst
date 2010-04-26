@@ -5,9 +5,9 @@ The genSpline python package is a Spline-based genetic optimization class.
 
 Requirements
 ---------------------------------------------------
-scipy
-numpy
-matplotlib
+	* scipy
+	* numpy
+	* matplotlib
 
 
 Installation
